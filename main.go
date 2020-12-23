@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"io"
 	"log"
 	"net/http"
@@ -8,20 +9,22 @@ import (
 	"strings"
 )
 
+const POSTField = "file"
+
 type config struct {
 	Listen    string
 	UploadDir string
 	PrefixURL string
-	POSTField string
 }
 
 var conf config
 
 func init() {
-	conf.Listen = "0.0.0.0:8080"
-	conf.UploadDir = "./upload"
-	conf.PrefixURL = "http://192.168.1.77:8080/files/"
-	conf.POSTField = "file"
+
+	flag.StringVar(&conf.Listen, "listen", "0.0.0.0:8080", "IP and port to bind to")
+	flag.StringVar(&conf.UploadDir, "upload.dir", "upload", "Directory for file uploads, must exist and be writeable")
+	flag.StringVar(&conf.PrefixURL, "url.prefix", "127.0.0.1:8080", "Public URL to prefix upload file paths with")
+	flag.Parse()
 }
 
 func noIndex(next http.Handler) http.Handler {
@@ -58,9 +61,9 @@ func upload(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	formFile, header, err := req.FormFile(conf.POSTField)
+	formFile, header, err := req.FormFile(POSTField)
 	if err != nil {
-		log.Printf("Error getting file from field %s: %s\n", conf.POSTField, err.Error())
+		log.Printf("Error getting file from field %s: %s\n", POSTField, err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
