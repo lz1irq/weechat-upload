@@ -20,7 +20,7 @@ var conf config
 func init() {
 	conf.Listen = "0.0.0.0:8080"
 	conf.UploadDir = "./upload"
-	conf.PrefixURL = "127.0.0.1:8080"
+	conf.PrefixURL = "http://192.168.1.77:8080/files/"
 	conf.POSTField = "file"
 }
 
@@ -81,6 +81,6 @@ func upload(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.Write([]byte(conf.PrefixURL + "/" + outputName))
+	w.Write([]byte(conf.PrefixURL + "/" + header.Filename))
 
 }
