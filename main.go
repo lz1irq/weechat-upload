@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 type config struct {
@@ -23,8 +24,22 @@ func init() {
 	conf.POSTField = "file"
 }
 
+func noIndex(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/") {
+			http.NotFound(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	http.HandleFunc("/upload", upload)
+
+	fileServer := http.FileServer(http.Dir(conf.UploadDir))
+	http.Handle("/files/", http.StripPrefix("/files", noIndex(fileServer)))
+
 	log.Fatal(http.ListenAndServe(conf.Listen, nil))
 }
 
