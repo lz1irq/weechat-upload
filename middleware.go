@@ -55,8 +55,8 @@ func basicAuth(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user, pass, ok := r.BasicAuth()
 		if !ok {
-			log.WithFields(makeRequestLog(r)).Error("Error parsing basic auth")
-			w.WriteHeader(http.StatusForbidden)
+			log.WithFields(makeRequestLog(r)).Error("Missing basic auth")
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 		if user != conf.AuthUsername || pass != conf.AuthPassword {
