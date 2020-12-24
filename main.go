@@ -106,6 +106,6 @@ func upload(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.Write([]byte(conf.PrefixURL + "/" + header.Filename))
+	w.Write([]byte(conf.PrefixURL + "/files/" + header.Filename))
 
 }
