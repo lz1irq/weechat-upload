@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path"
 	"strings"
 )
 
@@ -90,7 +91,7 @@ func upload(w http.ResponseWriter, req *http.Request) {
 	}
 	defer formFile.Close()
 
-	outputName := conf.UploadDir + "/" + header.Filename
+	outputName := conf.UploadDir + "/" + path.Base(header.Filename)
 	outputFile, err := os.Create(outputName)
 	if err != nil {
 		log.Printf("Failed to create output file %s: %s\n", outputName, err.Error())
