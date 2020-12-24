@@ -47,10 +47,12 @@ func basicAuth(next http.HandlerFunc) http.HandlerFunc {
 		if !ok {
 			log.Println("Error parsing basic auth")
 			w.WriteHeader(http.StatusForbidden)
+			return
 		}
 		if user != conf.AuthUsername || pass != conf.AuthPassword {
 			log.Println("Wrong username/password")
 			w.WriteHeader(http.StatusForbidden)
+			return
 		}
 		next.ServeHTTP(w, r)
 	})
