@@ -3,11 +3,11 @@ package main
 import (
 	"flag"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path"
-	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const POSTField = "file"
@@ -23,7 +23,6 @@ type config struct {
 var conf config
 
 func init() {
-
 	flag.StringVar(&conf.Listen, "listen", "0.0.0.0:8080", "IP and port to bind to")
 	flag.StringVar(&conf.UploadDir, "upload.dir", "upload", "Directory for file uploads, must exist and be writeable")
 	flag.StringVar(&conf.PrefixURL, "url.prefix", "http://127.0.0.1:8080", "Public URL to prefix upload file paths with")
@@ -32,38 +31,14 @@ func init() {
 	flag.Parse()
 }
 
-func noIndex(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasSuffix(r.URL.Path, "/") {
-			http.NotFound(w, r)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-func basicAuth(next http.HandlerFunc) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user, pass, ok := r.BasicAuth()
-		if !ok {
-			log.Println("Error parsing basic auth")
-			w.WriteHeader(http.StatusForbidden)
-			return
-		}
-		if user != conf.AuthUsername || pass != conf.AuthPassword {
-			log.Println("Wrong username/password")
-			w.WriteHeader(http.StatusForbidden)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
 func main() {
-	http.HandleFunc("/upload", basicAuth(upload))
+	http.HandleFunc("/upload", logRequest(basicAuth(upload)))
 
 	fileServer := http.FileServer(http.Dir(conf.UploadDir))
-	http.Handle("/files/", http.StripPrefix("/files", noIndex(fileServer)))
+	http.Handle(
+		"/files/",
+		logRequest(noIndex(http.StripPrefix("/files", fileServer).ServeHTTP)),
+	)
 
 	log.Fatal(http.ListenAndServe(conf.Listen, nil))
 }
@@ -85,7 +60,7 @@ func upload(w http.ResponseWriter, req *http.Request) {
 
 	formFile, header, err := req.FormFile(POSTField)
 	if err != nil {
-		log.Printf("Error getting file from field %s: %s\n", POSTField, err.Error())
+		log.WithFields(makeRequestLog(req)).WithField("POSTField", POSTField).WithError(err).Error("Failed to get file from POST")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -94,14 +69,14 @@ func upload(w http.ResponseWriter, req *http.Request) {
 	outputName := conf.UploadDir + "/" + path.Base(header.Filename)
 	outputFile, err := os.Create(outputName)
 	if err != nil {
-		log.Printf("Failed to create output file %s: %s\n", outputName, err.Error())
+		log.WithFields(makeRequestLog(req)).WithField("outputName", outputName).WithError(err).Error("Failed to create output file")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	defer outputFile.Close()
 
 	if _, err := io.Copy(outputFile, formFile); err != nil {
-		log.Printf("Failed to write to output file %s: %s", outputName, err.Error())
+		log.WithFields(makeRequestLog(req)).WithField("outputName", outputName).WithError(err).Error("Failed to write to output file")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
