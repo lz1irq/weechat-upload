@@ -32,6 +32,11 @@ func init() {
 }
 
 func main() {
+	http.HandleFunc(
+		"/",
+		logRequest(http.NotFoundHandler().ServeHTTP),
+	)
+
 	http.HandleFunc("/upload", logRequest(basicAuth(upload)))
 
 	fileServer := http.FileServer(http.Dir(conf.UploadDir))
