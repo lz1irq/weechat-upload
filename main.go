@@ -12,9 +12,11 @@ import (
 const POSTField = "file"
 
 type config struct {
-	Listen    string
-	UploadDir string
-	PrefixURL string
+	Listen       string
+	UploadDir    string
+	PrefixURL    string
+	AuthUsername string
+	AuthPassword string
 }
 
 var conf config
@@ -23,7 +25,9 @@ func init() {
 
 	flag.StringVar(&conf.Listen, "listen", "0.0.0.0:8080", "IP and port to bind to")
 	flag.StringVar(&conf.UploadDir, "upload.dir", "upload", "Directory for file uploads, must exist and be writeable")
-	flag.StringVar(&conf.PrefixURL, "url.prefix", "127.0.0.1:8080", "Public URL to prefix upload file paths with")
+	flag.StringVar(&conf.PrefixURL, "url.prefix", "http://127.0.0.1:8080", "Public URL to prefix upload file paths with")
+	flag.StringVar(&conf.AuthUsername, "auth.user", "user", "HTTP basic auth username")
+	flag.StringVar(&conf.AuthPassword, "auth.pass", "pass", "HTTP basic auth password")
 	flag.Parse()
 }
 
@@ -37,8 +41,23 @@ func noIndex(next http.Handler) http.Handler {
 	})
 }
 
+func basicAuth(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, pass, ok := r.BasicAuth()
+		if !ok {
+			log.Println("Error parsing basic auth")
+			w.WriteHeader(http.StatusForbidden)
+		}
+		if user != conf.AuthUsername || pass != conf.AuthPassword {
+			log.Println("Wrong username/password")
+			w.WriteHeader(http.StatusForbidden)
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
-	http.HandleFunc("/upload", upload)
+	http.HandleFunc("/upload", basicAuth(upload))
 
 	fileServer := http.FileServer(http.Dir(conf.UploadDir))
 	http.Handle("/files/", http.StripPrefix("/files", noIndex(fileServer)))
